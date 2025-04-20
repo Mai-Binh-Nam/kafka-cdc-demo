@@ -1,0 +1,138 @@
+version: '3'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: debezium/postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: orders
+    ports:
+      - "15432:5432"
+    volumes:
+      - ./sql/init-orders.sql:/docker-entrypoint-initdb.d/init-orders.sql
+      - ./sql/init-results.sql:/docker-entrypoint-initdb.d/init-results.sql
+    networks:
+      - kafka-network
+    healthcheck:
+      test: pg_isready -U postgres -d orders
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Zookeeper for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.0.1
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka-network
+
+  # Kafka broker
+  kafka:
+    image: confluentinc/cp-kafka:7.0.1
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      # Java heap configuration
+      KAFKA_HEAP_OPTS: "-Xmx1G -Xms512M"
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - kafka-network
+    healthcheck:
+      test: [ "CMD", "/kafka/bin/kafka-topics.sh", "--bootstrap-server=kafka:9092", "--list" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka Connect for CDC
+  kafka-connect:
+    image: debezium/connect:1.9
+    container_name: kafka-connect
+    depends_on:
+      - kafka
+      - postgres
+      - zookeeper
+    ports:
+      - "8083:8083"
+    environment:
+      # Java heap configuration
+      KAFKA_HEAP_OPTS: "-Xmx1G -Xms512M"
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      # Add these for better logging
+      CONNECT_LOG4J_ROOT_LOGLEVEL: "INFO"
+      CONNECT_LOG4J_LOGGERS: "org.apache.kafka.connect=INFO,io.debezium=DEBUG"
+    volumes:
+      - ./connect:/kafka/connect/config
+    command: >
+      bash -c "
+        echo 'Waiting for Kafka Connect to start listening on kafka-connect:8083...';
+        while [ $$(curl -s -o /dev/null -w %{http_code} http://kafka-connect:8083/connectors) -ne 200 ]; do 
+          echo -e $$(date) 'Kafka Connect listener not ready, retrying in 5 seconds...';
+          sleep 5;
+        done;
+        echo -e $$(date) 'Kafka Connect is ready! Submitting Postgres connector config...';
+        curl -i -X POST -H 'Content-Type: application/json' --data @/kafka/connect/config/postgres-connector.json http://kafka-connect:8083/connectors;
+        echo 'Postgres connector submitted successfully!';
+        sleep infinity"
+
+  # Redis for caching/messaging
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/preload.json:/data/preload.json
+    networks:
+      - kafka-network
+    command: redis-server
+
+  # Consumer application
+  consumer:
+    build:
+      context: ./consumer
+      dockerfile: Dockerfile
+    container_name: consumer
+    depends_on:
+      - kafka
+      - redis
+      - postgres
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: orders
+    networks:
+      - kafka-network
+
+networks:
+  kafka-network:
+    driver: bridge

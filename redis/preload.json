@@ -1,0 +1,18 @@
+{
+  "config": {
+    "notify-keyspace-events": "KEA"
+  },
+  "data": {
+    "config:consumer": {
+      "batch_size": 100,
+      "processing_interval": 5,
+      "enable_notifications": true
+    },
+    "status:system": {
+      "name": "kafka-cdc-demo",
+      "version": "1.0.0",
+      "started_at": "2025-04-19T16:19:12+07:00",
+      "status": "RUNNING"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "orders-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "database.hostname": "postgres",
+    "database.port": "5432",
+    "database.user": "postgres",
+    "database.password": "postgres",
+    "database.dbname": "orders",
+    "database.server.name": "postgres",
+    "schema.include": "public",
+    "table.include.list": "public.orders",
+    "slot.name": "orders_slot",
+    "publication.name": "orders_pub",
+    "topic.prefix": "postgres",
+    "plugin.name": "pgoutput",
+    "tombstones.on.delete": "false",
+    "transforms": "unwrap",
+    "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+    "transforms.unwrap.drop.tombstones": "false",
+    "transforms.unwrap.delete.handling.mode": "rewrite",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false",
+    "heartbeat.interval.ms": "300000",
+    "heartbeat.action.query": "UPDATE heart_beat SET updated_at = NOW() WHERE id = 1"
+  }
+}
