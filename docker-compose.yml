@@ -27,6 +27,8 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # Default topic retention settings
+      KAFKA_LOG_RETENTION_HOURS: 1        # 7 days (default)
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server=kafka:29092", "--list"]
       interval: 10s
