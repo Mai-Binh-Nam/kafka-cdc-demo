@@ -74,11 +74,23 @@ kafka-cdc-demo/
 ## Monitoring
 
 - Kafka Connect UI: http://localhost:8083
-- PostgreSQL: localhost:5432 (user: postgres, password: postgres)
-- Redis: localhost:6379
+- Kafka UI: http://localhost:8085
+- PostgreSQL: postgres:5432 (user: postgres, password: postgres)
+- Replication Slot: 
+  ```sql
+   SELECT slot_name, 
+   active, 
+   restart_lsn, 
+   confirmed_flush_lsn, 
+   pg_current_wal_lsn(), 
+   pg_current_wal_lsn() - restart_lsn AS lag
+   FROM pg_replication_slots;
+  ```
+- Redis: redis:6379
 
 ## Troubleshooting
 
-- Check connector status: `curl http://localhost:8083/connectors/orders-connector/status`
+- Check connector status: `curl http://kafka-connect:8083/connectors/orders-connector/status`
 - View Kafka topics: `docker exec -it kafka kafka-topics --bootstrap-server kafka:9092 --list`
 - Consumer logs: `docker-compose logs -f consumer`
+- Kafka Connect logs: `docker-compose logs -f kafka-connect`
