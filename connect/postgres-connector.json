@@ -30,6 +30,6 @@
     "errors.tolerance": "all",
     "errors.log.enable": "true",
     "errors.deadletterqueue.topic.name": "dlq-errors",
-    "errors.deadletterqueue.context.headers.enable": "false"
+    "errors.deadletterqueue.context.headers.enable": "true",
   }
 }
