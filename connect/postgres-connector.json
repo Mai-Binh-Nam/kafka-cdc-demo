@@ -26,6 +26,10 @@
     "value.converter.schemas.enable": "false",
     "decimal.handling.mode": "double",
     "heartbeat.interval.ms": "300000",
-    "heartbeat.action.query": "UPDATE heart_beat SET updated_at = NOW() WHERE id = 1"
+    "heartbeat.action.query": "UPDATE heart_beat SET updated_at = NOW() WHERE id = 1",
+    "errors.tolerance": "all",
+    "errors.log.enable": "true",
+    "errors.deadletterqueue.topic.name": "dlq-errors",
+    "errors.deadletterqueue.context.headers.enable": "true"
   }
 }
